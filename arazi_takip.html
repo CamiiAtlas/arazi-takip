@@ -160,7 +160,23 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);fon
 .bg-overlay{position:absolute;inset:0;background:rgba(240,237,232,0.65);pointer-events:none;z-index:0}
 .canvas-inner{position:relative;z-index:1}
 
-/* TOAST */
+/* DURUM GÜNLÜĞÜ */
+.gunluk{display:flex;flex-direction:column;gap:0;margin-top:6px;position:relative}
+.gunluk::before{content:'';position:absolute;left:11px;top:8px;bottom:8px;width:2px;background:var(--border);border-radius:2px}
+.gl-item{display:flex;gap:12px;align-items:flex-start;padding:6px 0;position:relative}
+.gl-dot{width:10px;height:10px;border-radius:50%;background:var(--green);border:2px solid var(--surface);flex-shrink:0;margin-top:4px;z-index:1;box-shadow:0 0 0 2px var(--gl)}
+.gl-dot.eski{background:var(--t3);box-shadow:0 0 0 2px var(--s2)}
+.gl-right{flex:1}
+.gl-tarih{font-size:10px;color:var(--t3);font-family:'DM Mono',monospace;margin-bottom:2px}
+.gl-metin{font-size:13px;line-height:1.5;color:var(--text)}
+.gl-sil{font-size:11px;color:var(--t3);cursor:pointer;padding:2px 5px;border-radius:3px;border:none;background:none;font-family:'DM Sans',sans-serif;opacity:0;transition:opacity .15s}
+.gl-item:hover .gl-sil{opacity:1}
+.gl-sil:hover{color:var(--red);background:var(--rl)}
+.gl-ekle{display:flex;gap:8px;margin-top:10px;align-items:flex-start}
+.gl-ekle textarea{flex:1;font-family:'DM Sans',sans-serif;font-size:13px;padding:7px 10px;border:1px solid var(--border);border-radius:var(--rs);background:var(--s2);color:var(--text);outline:none;resize:none;min-height:60px;transition:border-color .15s}
+.gl-ekle textarea:focus{border-color:var(--green);background:#fff}
+.gl-ekle-btn{padding:7px 12px;border-radius:var(--rs);border:1px solid var(--green);background:var(--gl);color:var(--green);cursor:pointer;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;white-space:nowrap;transition:all .15s}
+.gl-ekle-btn:hover{background:var(--green);color:#fff}
 .toast{position:fixed;bottom:48px;left:50%;transform:translateX(-50%);background:#1a1714;color:#fff;padding:9px 18px;border-radius:8px;font-size:13px;z-index:999;box-shadow:0 4px 12px rgba(0,0,0,.2)}
 
 @media(max-width:600px){
@@ -251,6 +267,7 @@ function renderMasa(){
     const kom=parseFloat(p.komisyon_miktar)||0;
     const pay=parseInt(p.paydas_sayisi)||1;
     const stripClass = p.renk_strip || durumStrip(p.durum);
+    const sonGunluk = p.gunluk && p.gunluk.length ? p.gunluk[p.gunluk.length-1] : null;
     el.innerHTML=`
       <div class="kart-strip ${stripClass}"></div>
       <div class="kart-handle" id="h${p.id}">
@@ -267,6 +284,10 @@ function renderMasa(){
           ${p.lokasyon?`<div class="kart-meta-row">📍 ${p.lokasyon}</div>`:''}
           ${p.muhatap_adi?`<div class="kart-meta-row">👤 ${p.muhatap_adi}</div>`:''}
           ${kom?`<div class="kart-kom">💰 ${fmt(kom,p.komisyon_birim||'TL')}${pay>1?' ÷'+pay:''}</div>`:''}
+          ${sonGunluk?`<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
+            <div style="font-size:10px;color:var(--t3);font-family:'DM Mono',monospace;margin-bottom:2px">📋 ${sonGunluk.tarih}</div>
+            <div style="font-size:11px;color:var(--t2);line-height:1.4">${sonGunluk.metin.slice(0,60)}${sonGunluk.metin.length>60?'…':''}</div>
+          </div>`:''}
         </div>
         <div class="kart-actions" onclick="event.stopPropagation()">
           <button class="btn btn-sm" style="flex:1" onclick="acDuzenle(${p.id})">Düzenle</button>
@@ -470,6 +491,31 @@ function detayHTML(p){
     <div class="nitem"><div class="ntext">${n.m}</div>
     <div style="text-align:right"><div class="ndate">${n.t}</div>
     <button class="btn btn-sm btn-d" style="margin-top:4px" onclick="notSil(${p.id},${i})">×</button></div></div>`).join('')}</div>`;
+
+  // DURUM GÜNLÜĞÜ
+  const gunluk=(p.gunluk||[]);
+  h+=`<div class="sec" style="display:flex;align-items:center;justify-content:space-between">
+    <span>📋 Durum Günlüğü</span>
+    <span style="font-size:10px;color:var(--t3);font-weight:400;text-transform:none">${gunluk.length} kayıt</span>
+  </div>
+  <div class="gunluk">
+    ${gunluk.length?[...gunluk].reverse().map((g,ri)=>{
+      const i=gunluk.length-1-ri;
+      return `<div class="gl-item">
+        <div class="gl-dot ${ri>0?'eski':''}"></div>
+        <div class="gl-right">
+          <div class="gl-tarih">${g.tarih}${g.saat?' · '+g.saat:''}</div>
+          <div class="gl-metin">${g.metin}</div>
+        </div>
+        <button class="gl-sil" onclick="gunlukSil(${p.id},${i})" title="Sil">✕</button>
+      </div>`;
+    }).join(''):'<div style="font-size:12px;color:var(--t3);padding:8px 0 4px 22px">Henüz kayıt yok.</div>'}
+  </div>
+  <div class="gl-ekle">
+    <textarea id="gl-input-${p.id}" placeholder="Bugünkü durumu yaz… (örn: Müteahhitle görüşüldü, teklif bekleniyor)" rows="2"></textarea>
+    <button class="gl-ekle-btn" onclick="gunlukEkle(${p.id})">+ Ekle</button>
+  </div>`;
+
   h+=`<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
     <button class="btn btn-sm" onclick="notEkle(${p.id})">+ Not Ekle</button>
     <button class="gcal" onclick="gcal(${p.id})">
@@ -631,8 +677,8 @@ function projeKaydet(id){
     kaks:fp[0]?fp[0].kaks:'',
   };
   let data=load();
-  if(id){const i=data.findIndex(x=>x.id===id);if(i>-1){yeni.id=id;yeni.notlar=data[i].notlar||[];data[i]=yeni;}}
-  else{yeni.id=Date.now();yeni.notlar=[];data.push(yeni);}
+  if(id){const i=data.findIndex(x=>x.id===id);if(i>-1){yeni.id=id;yeni.notlar=data[i].notlar||[];yeni.gunluk=data[i].gunluk||[];data[i]=yeni;}}
+  else{yeni.id=Date.now();yeni.notlar=[];yeni.gunluk=[];data.push(yeni);}
   save(data);closeModal();renderMasa();
 }
 
@@ -654,6 +700,33 @@ function notEkle(id){
   const d=load(),p=d.find(x=>x.id===id);
   if(p){if(!p.notlar)p.notlar=[];p.notlar.push({m,t:new Date().toLocaleDateString('tr-TR')});}
   save(d);closeModal();renderMasa();
+}
+
+function gunlukEkle(id){
+  const el=document.getElementById('gl-input-'+id);
+  const metin=(el?el.value:'').trim();
+  if(!metin)return;
+  const d=load(),p=d.find(x=>x.id===id);
+  if(p){
+    if(!p.gunluk)p.gunluk=[];
+    const now=new Date();
+    p.gunluk.push({
+      metin,
+      tarih:now.toLocaleDateString('tr-TR'),
+      saat:now.toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'})
+    });
+    save(d);
+    // Refresh modal
+    closeModal();
+    kartDetay(id);
+  }
+}
+
+function gunlukSil(pid,idx){
+  if(!confirm('Bu kayıt silinsin mi?'))return;
+  const d=load(),p=d.find(x=>x.id===pid);
+  if(p&&p.gunluk)p.gunluk.splice(idx,1);
+  save(d);closeModal();kartDetay(pid);
 }
 
 function gcal(id){
